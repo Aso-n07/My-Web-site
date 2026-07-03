@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study with me - Study Room</title>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Supabase JS Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { background-color: #111; color: white; margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; }
+        
+        .study-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            height: 100vh;
+            gap: 10px;
+            padding: 10px;
+            box-sizing: border-box;
+            background-color: #000;
+        }
+
+        .grid-item {
+            background-color: #1a1a1a;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .grid-item iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            pointer-events: none; /* 클릭 방지 */
+            transform: scale(1.05); /* 약간 확대해서 테두리 자르기 */
+        }
+
+        /* 닉네임 라벨 */
+        .participant-name {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #fff;
+            font-weight: 500;
+            z-index: 10;
+        }
+
+        /* 중앙 하단 메인 컨트롤 바 */
+        .global-controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30, 30, 30, 0.85);
+            padding: 10px 20px;
+            border-radius: 50px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        .global-controls button {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 1.3rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .global-controls button:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-3px);
+        }
+
+        .global-controls button.btn-exit {
+            background-color: #ea4335; /* 구글미트 스타일 빨간 종료 버튼 */
+            color: white;
+        }
+
+        .global-controls button.btn-exit:hover {
+            background-color: #d93025;
+        }
+
+        /* 우측 하단 타이머 */
+        .mini-timer {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background-color: rgba(217, 48, 37, 0.9); /* 빨간 배경 */
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            z-index: 100;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+        
+        .mini-timer:hover {
+            transform: scale(1.05);
+        }
+        
+        .mini-timer.paused {
+            background-color: rgba(100, 100, 100, 0.9); /* 정지 시 회색 */
+        }
+
+        /* 본인 아바타 스타일 */
+        .my-avatar-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background-color: #1a1a1a;
+        }
+
+        .my-avatar-circle {
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            background-color: #8ab4f8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 -4px 12px rgba(0, 0, 0, 0.15);
+            transition: transform 0.3s ease, filter 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Glossy highlight overlay matching reference image */
+        .my-avatar-circle::before {
+            content: '';
+            position: absolute;
+            top: -10%;
+            left: -10%;
+            width: 120%;
+            height: 70%;
+            background: radial-gradient(ellipse at 40% 30%, rgba(255,255,255,0.25) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .my-avatar-circle:hover {
+            transform: scale(1.08);
+            filter: brightness(1.12);
+        }
+
+        .my-avatar-svg {
+            width: 65px;
+            height: 65px;
+            fill: #ffffff;
+            position: relative;
+            z-index: 2;
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.15));
+        }
+
+        /* 실시간 채팅 스타일 */
+        .chat-messages-container {
+            height: 250px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            margin-bottom: 1rem;
+        }
+
+        /* 스크롤바 */
+        .chat-messages-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .chat-messages-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .chat-messages-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+        }
+
+        .chat-bubble {
+            display: flex;
+            flex-direction: column;
+            max-width: 85%;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            word-break: break-all;
+        }
+
+        .chat-bubble.me {
+            align-self: flex-end;
+            background-color: var(--secondary-color);
+            color: #091325;
+            border-bottom-right-radius: 2px;
+        }
+
+        .chat-bubble.other {
+            align-self: flex-start;
+            background-color: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+            border-bottom-left-radius: 2px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .chat-sender {
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 2px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        .chat-bubble.me .chat-sender {
+            color: rgba(9, 19, 37, 0.6);
+        }
+
+        .chat-text {
+            font-weight: 400;
+        }
+
+        .chat-time {
+            font-size: 0.65rem;
+            align-self: flex-end;
+            margin-top: 4px;
+            opacity: 0.6;
+        }
+
+        .chat-input-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .chat-input-group input {
+            flex: 1;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .chat-input-group input:focus {
+            border-color: var(--secondary-color);
+        }
+
+        .btn-chat-send {
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            border: none;
+            background: var(--secondary-color);
+            color: #091325;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+        }
+
+        .btn-chat-send:hover {
+            background: var(--secondary-hover);
+        }
+
+        /* 룸 정보 배너 스타일 */
+        .room-info-banner {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(30, 30, 30, 0.85);
+            padding: 8px 16px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .room-info-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #fff;
+        }
+
+        .room-info-tag {
+            font-size: 0.7rem;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .room-info-tag.public {
+            background: rgba(38, 208, 206, 0.15);
+            color: var(--secondary-color);
+        }
+
+        .room-info-tag.private {
+            background: rgba(255, 99, 71, 0.15);
+            color: #ff6347;
+        }
+
+        .room-code-display {
+            font-family: monospace;
+            font-weight: 700;
+            font-size: 0.85rem;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #ffb86c;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-copy-code {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            font-size: 0.85rem;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s, transform 0.1s;
+        }
+
+        .btn-copy-code:hover {
+            color: #fff;
+            transform: scale(1.15);
+        }
+        
+        .btn-copy-code:active {
+            transform: scale(0.9);
+        }
+    </style>
+</head>
+<body>
+    <!-- 룸 정보 배너 -->
+    <div class="room-info-banner" id="room-info-banner" style="display: none;">
+        <span class="room-info-title" id="room-info-title">로딩 중...</span>
+        <span class="room-info-tag public" id="room-info-tag">공개방</span>
+        <div class="room-code-display" id="room-code-display" style="display: none;">
+            <span>코드: <strong id="room-code-text">------</strong></span>
+            <button class="btn-copy-code" id="btn-copy-code" title="코드 복사">📋</button>
+        </div>
+    </div>
+
+    <div class="study-container" id="study-container">
+        <div class="study-grid" id="study-grid">
+            <!-- 1번 -->
+            <div class="grid-item" id="slot-0">
+                <div class="my-avatar-container">
+                    <div class="my-avatar-circle">
+                        <svg viewBox="0 0 24 24" class="my-avatar-svg">
+                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="participant-name">나</div>
+            </div>
+            <!-- 2번 -->
+            <div class="grid-item" id="slot-1">
+                <iframe class="yt-iframe" allow="autoplay"></iframe>
+                <div class="participant-name">스터디원 1</div>
+            </div>
+            <!-- 3번 -->
+            <div class="grid-item" id="slot-2">
+                <iframe class="yt-iframe" allow="autoplay"></iframe>
+                <div class="participant-name">스터디원 2</div>
+            </div>
+            <!-- 4번 -->
+            <div class="grid-item" id="slot-3">
+                <iframe class="yt-iframe" allow="autoplay"></iframe>
+                <div class="participant-name">스터디원 3</div>
+            </div>
+            <!-- 5번 -->
+            <div class="grid-item" id="slot-4">
+                <iframe class="yt-iframe" allow="autoplay"></iframe>
+                <div class="participant-name">스터디원 4</div>
+            </div>
+            <!-- 6번 -->
+            <div class="grid-item" id="slot-5">
+                <iframe class="yt-iframe" allow="autoplay"></iframe>
+                <div class="participant-name">스터디원 5</div>
+            </div>
+        </div>
+
+        <!-- 스터디 조수 사이드바 -->
+        <div class="study-sidebar" id="study-sidebar">
+            <div class="sidebar-header">
+                <h3>📋 스터디 툴박스</h3>
+                <button id="btn-close-sidebar" class="btn-close-sidebar">&times;</button>
+            </div>
+            
+            <div class="sidebar-content">
+                <!-- 뽀모도로 타이머 카드 -->
+                <div class="sidebar-card pomodoro-card">
+                    <h4>⏱️ 뽀모도로 타이머</h4>
+                    <div class="pomo-mode-selector">
+                        <button class="btn-pomo-mode active" id="btn-pomo-focus" data-mode="focus">집중 (25분)</button>
+                        <button class="btn-pomo-mode" id="btn-pomo-break" data-mode="break">휴식 (5분)</button>
+                    </div>
+                    <div class="pomo-timer-display" id="pomo-timer-display">25:00</div>
+                    <div class="pomo-controls">
+                        <button id="btn-pomo-start" class="btn btn-pomo btn-primary" style="padding: 0.6rem 1rem;">시작</button>
+                        <button id="btn-pomo-reset" class="btn btn-pomo btn-secondary" style="padding: 0.6rem 1rem;">초기화</button>
+                    </div>
+                    <div class="session-info">
+                        <span>🔥 총 누적 집중 시간:</span>
+                        <span id="session-accumulated-time">0분</span>
+                    </div>
+                </div>
+                
+                <!-- 투두 리스트 카드 -->
+                <div class="sidebar-card todo-card">
+                    <h4>📋 오늘의 할 일</h4>
+                    <div class="todo-progress-container">
+                        <div class="todo-progress-bar">
+                            <div class="todo-progress" id="todo-progress" style="width: 0%;"></div>
+                        </div>
+                        <span class="todo-progress-text" id="todo-progress-text">0 / 0 완료</span>
+                    </div>
+                    
+                    <form id="todo-form" class="todo-input-group" onsubmit="return false;">
+                        <input type="text" id="todo-input" placeholder="할 일을 입력하세요..." required autocomplete="off">
+                        <button type="submit" class="btn-todo-add">추가</button>
+                    </form>
+                    
+                    <ul class="todo-list" id="todo-list">
+                        <!-- 동적으로 로드되는 투두 항목 -->
+                    </ul>
+                </div>
+                
+                <!-- 실시간 채팅 카드 -->
+                <div class="sidebar-card chat-card">
+                    <h4>💬 실시간 채팅</h4>
+                    <div class="chat-messages-container" id="chat-messages-container">
+                        <!-- 동적으로 로드되는 채팅 메시지 -->
+                    </div>
+                    
+                    <form id="chat-form" class="chat-input-group" onsubmit="return false;">
+                        <input type="text" id="chat-input" placeholder="메시지를 입력하세요..." required autocomplete="off">
+                        <button type="submit" class="btn-chat-send">전송</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 하단 중앙 컨트롤 바 -->
+    <div class="global-controls">
+        <button title="마이크 음소거">🎙️</button>
+        <button title="비디오 끄기">📷</button>
+        <button id="btn-toggle-chat" title="채팅">💬</button>
+        <button title="참가자">👥</button>
+        <button id="btn-toggle-pomo" title="뽀모도로 타이머">⏱️</button>
+        <button id="btn-toggle-todo" title="투두리스트">📋</button>
+        <button class="btn-exit" id="btn-exit" title="통화 종료 및 공부 기록 저장">☎️</button>
+    </div>
+
+    <!-- 우측 하단 미니 타이머 -->
+    <div class="mini-timer" id="timer" title="클릭하여 일시정지/재개">25:00</div>
+
+    <!-- 스크립트 로드 -->
+    <script src="study.js"></script>
+</body>
+</html>

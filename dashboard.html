@@ -354,9 +354,17 @@
                 const roomName = document.getElementById('room-name').value.trim();
                 const roomType = document.getElementById('room-type').value;
                 const isPrivate = roomType === 'private';
-                const themeVideoId = document.getElementById('theme-video-id').value;
+                let themeVideoId = document.getElementById('theme-video-id').value;
 
                 if (!roomName) return;
+
+                const destGroup = document.getElementById('destination-group');
+                if (destGroup && destGroup.style.display === 'flex') {
+                    const flightTime = document.getElementById('flight-destination').value;
+                    if (themeVideoId) {
+                        themeVideoId = `${themeVideoId}:${flightTime}`;
+                    }
+                }
 
                 const submitBtn = createRoomForm.querySelector('button[type="submit"]');
                 submitBtn.disabled = true;
@@ -386,13 +394,7 @@
                         alert(`비밀방이 개설되었습니다!\n참여 코드: ${newRoom.room_code}\n코드를 친구들에게 전송해 참여하게 하세요.`);
                     }
                     
-                    let redirectUrl = `study.html?room_id=${newRoom.id}`;
-                    const destGroup = document.getElementById('destination-group');
-                    if (destGroup && destGroup.style.display === 'flex') {
-                        const flightTime = document.getElementById('flight-destination').value;
-                        redirectUrl += `&flight_time=${flightTime}`;
-                    }
-                    window.location.href = redirectUrl;
+                    window.location.href = `study.html?room_id=${newRoom.id}`;
                 }
             });
 

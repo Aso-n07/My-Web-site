@@ -41,7 +41,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ==========================================
     // 비행기 탑승 모드 로직
     // ==========================================
-    const flightTimeParam = urlParams.get('flight_time');
+    let flightTimeParam = urlParams.get('flight_time');
+    let dbVideoId = room.video_id;
+    
+    // DB에 ':' 구분자로 flightTime이 저장된 경우 (새로운 공개방 연동 방식)
+    if (dbVideoId && dbVideoId.includes(':')) {
+        const parts = dbVideoId.split(':');
+        dbVideoId = parts[0];
+        flightTimeParam = parts[1];
+        room.video_id = dbVideoId; // 이후 iframe 로딩을 위해 복구
+    }
+
     let isFlightMode = false;
     let flightSecondsTotal = 0;
     let flightSecondsRemaining = 0;
@@ -54,6 +64,38 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const flightModeUI = document.getElementById('flight-mode-ui');
         if (flightModeUI) flightModeUI.style.display = 'block';
+
+        const windowOverlay = document.querySelector('.airplane-window-frame');
+        if (windowOverlay) windowOverlay.style.display = 'none'; // 기존 하얀색 가짜 창문 프레임 숨김
+
+        // 생성된 고퀄리티 이미지로 배경 교체
+        document.body.style.backgroundImage = 'url("./assets/airplane_interior.png")';
+        document.body.style.backgroundSize = 'cover';
+        document.body.style.backgroundPosition = 'center';
+        document.body.style.backgroundRepeat = 'no-repeat';
+        document.body.style.backgroundColor = '#1a2980'; // Fallback
+
+        const studyGrid = document.getElementById('study-grid');
+        if (studyGrid) studyGrid.style.backgroundColor = 'transparent';
+        
+        const studyContainer = document.getElementById('study-container');
+        if (studyContainer) studyContainer.style.backgroundColor = 'transparent';
+
+        // 유튜브 영상은 소리만 나게 하고 화면은 투명하게 처리하여 배경 뷰어를 방해하지 않음
+        setTimeout(() => {
+            const iframes = document.querySelectorAll('.yt-iframe');
+            iframes.forEach(iframe => iframe.style.opacity = '0');
+            const gridItems = document.querySelectorAll('.grid-item');
+            gridItems.forEach(item => {
+                item.style.backgroundColor = 'transparent';
+                item.style.boxShadow = 'none';
+            });
+            const avatarContainers = document.querySelectorAll('.my-avatar-container');
+            avatarContainers.forEach(c => c.style.backgroundColor = 'transparent');
+            
+            const participantNames = document.querySelectorAll('.participant-name');
+            participantNames.forEach(name => name.style.background = 'rgba(0,0,0,0.5)');
+        }, 1000);
 
         const destText = {
             '60': '제주도 (1시간)',

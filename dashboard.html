@@ -387,7 +387,7 @@
                     
                     let redirectUrl = `study.html?room_id=${newRoom.id}`;
                     const destGroup = document.getElementById('destination-group');
-                    if (destGroup && destGroup.style.display === 'block') {
+                    if (destGroup && destGroup.style.display === 'flex') {
                         const flightTime = document.getElementById('flight-destination').value;
                         redirectUrl += `&flight_time=${flightTime}`;
                     }

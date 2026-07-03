@@ -367,6 +367,24 @@
     </style>
 </head>
 <body>
+    <!-- 비행기 모드 UI (기본 숨김) -->
+    <div id="flight-mode-ui" style="display: none;">
+        <!-- 비행기 창문 프레임 오버레이 -->
+        <div class="airplane-window-frame"></div>
+        
+        <!-- 상단 비행 현황 바 -->
+        <div class="flight-status-bar">
+            <div class="flight-info">
+                <span class="flight-icon">✈️</span>
+                <span id="flight-destination-text">목적지행 비행기</span>
+            </div>
+            <div class="flight-timer">
+                <span>남은 시간: </span>
+                <span id="flight-time-left">00:00:00</span>
+            </div>
+        </div>
+    </div>
+
     <!-- 룸 정보 배너 -->
     <div class="room-info-banner" id="room-info-banner" style="display: none;">
         <span class="room-info-title" id="room-info-title">로딩 중...</span>

@@ -38,6 +38,70 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
+    // ==========================================
+    // 비행기 탑승 모드 로직
+    // ==========================================
+    const flightTimeParam = urlParams.get('flight_time');
+    let isFlightMode = false;
+    let flightSecondsTotal = 0;
+    let flightSecondsRemaining = 0;
+    let flightInterval = null;
+
+    if (flightTimeParam) {
+        isFlightMode = true;
+        flightSecondsTotal = parseInt(flightTimeParam) * 60;
+        flightSecondsRemaining = flightSecondsTotal;
+
+        const flightModeUI = document.getElementById('flight-mode-ui');
+        if (flightModeUI) flightModeUI.style.display = 'block';
+
+        const destText = {
+            '60': '제주도 (1시간)',
+            '120': '도쿄 (2시간)',
+            '360': '방콕 (6시간)',
+            '720': '파리 (12시간)',
+            '840': '뉴욕 (14시간)'
+        }[flightTimeParam] || `${flightTimeParam}분 비행`;
+        
+        const destEl = document.getElementById('flight-destination-text');
+        if (destEl) destEl.textContent = `${destText}행 비행기`;
+
+        startFlightTimer();
+    }
+
+    function startFlightTimer() {
+        const flightTimeLeftEl = document.getElementById('flight-time-left');
+        
+        // Initial display
+        updateFlightDisplay(flightTimeLeftEl);
+
+        flightInterval = setInterval(() => {
+            if (flightSecondsRemaining > 0) {
+                flightSecondsRemaining--;
+                if (!isFlightMode) return; // in case of weird state
+                
+                // Add to global session seconds for tracking
+                // In study.js, the pomodoro timer increases `seconds`
+                // But in flight mode, we increase it directly here
+                seconds++;
+                
+                updateFlightDisplay(flightTimeLeftEl);
+            } else {
+                clearInterval(flightInterval);
+                playAlertSound();
+                alert('비행이 종료되었습니다. 목적지에 도착했습니다! 수고하셨습니다 ✈️');
+            }
+        }, 1000);
+    }
+
+    function updateFlightDisplay(el) {
+        if (!el) return;
+        const h = Math.floor(flightSecondsRemaining / 3600).toString().padStart(2, '0');
+        const m = Math.floor((flightSecondsRemaining % 3600) / 60).toString().padStart(2, '0');
+        const s = (flightSecondsRemaining % 60).toString().padStart(2, '0');
+        el.textContent = `${h}:${m}:${s}`;
+    }
+
     // 룸 정보 배너 렌더링
     const banner = document.getElementById('room-info-banner');
     const bannerTitle = document.getElementById('room-info-title');
